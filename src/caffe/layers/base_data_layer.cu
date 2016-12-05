@@ -13,13 +13,25 @@ void BasePrefetchingDataLayer<Dtype>::Forward_gpu(
   // Copy the data
   caffe_copy(batch->data_.count(), batch->data_.gpu_data(),
       top[0]->mutable_gpu_data());
+#ifndef MSCNN
   if (this->output_labels_) {
-    // Reshape to loaded labels.
-    top[1]->ReshapeLike(batch->label_);
-    // Copy the labels.
-    caffe_copy(batch->label_.count(), batch->label_.gpu_data(),
-        top[1]->mutable_gpu_data());
+	  // Reshape to loaded labels.
+	  top[1]->ReshapeLike(batch->label_);
+	  // Copy the labels.
+	  caffe_copy(batch->label_.count(), batch->label_.gpu_data(),
+			  top[1]->mutable_gpu_data());
   }
+#else
+  if (this->output_labels_) {
+    for (int nn = 0; nn < batch->labels_.size(); nn++) {
+    // Reshape to loaded labels.
+    top[nn+1]->ReshapeLike(*batch->labels_[nn]);
+    // Copy the labels.
+    caffe_copy(batch->labels_[nn]->count(), batch->labels_[nn]->gpu_data(),
+        top[nn+1]->mutable_gpu_data());
+    }
+  }
+#endif
   // Ensure the copy is synchronous wrt the host, so that the next batch isn't
   // copied in meanwhile.
   CUDA_CHECK(cudaStreamSynchronize(cudaStreamDefault));

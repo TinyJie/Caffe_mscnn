@@ -45,11 +45,18 @@ class BaseDataLayer : public Layer<Dtype> {
   bool output_labels_;
 };
 
+/*template <typename Dtype>
+class Batch {
+ public:
+  Blob<Dtype> data_, label_;
+};*/
 template <typename Dtype>
 class Batch {
  public:
   Blob<Dtype> data_, label_;
+  vector<shared_ptr<Blob<Dtype> > > labels_;
 };
+
 
 template <typename Dtype>
 class BasePrefetchingDataLayer :

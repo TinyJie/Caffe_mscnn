@@ -18,6 +18,8 @@
 
 #include "caffe/util/device_alternate.hpp"
 
+#define MSCNN
+
 // Convert macro to string
 #define STRINGIFY(m) #m
 #define AS_STRING(m) STRINGIFY(m)

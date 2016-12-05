@@ -50,21 +50,45 @@ void BasePrefetchingDataLayer<Dtype>::LayerSetUp(
   // calls so that the prefetch thread does not accidentally make simultaneous
   // cudaMalloc calls when the main thread is running. In some GPUs this
   // seems to cause failures if we do not so.
+#ifndef MSCNN
+  for (int i = 0; i < PREFETCH_COUNT; ++i) {
+	  prefetch_[i].data_.mutable_cpu_data();
+	  if (this->output_labels_) {
+		  prefetch_[i].label_.mutable_cpu_data();
+	  }
+  }
+#else
   for (int i = 0; i < PREFETCH_COUNT; ++i) {
     prefetch_[i].data_.mutable_cpu_data();
     if (this->output_labels_) {
-      prefetch_[i].label_.mutable_cpu_data();
+      for (int nn = 0; nn < prefetch_[i].labels_.size(); nn++) {
+      	prefetch_[i].labels_[nn]->mutable_cpu_data();
+      }
     }
   }
+#endif
 #ifndef CPU_ONLY
+#ifndef MSCNN
+  if (Caffe::mode() == Caffe::GPU) {
+	  for (int i = 0; i < PREFETCH_COUNT; ++i) {
+		  prefetch_[i].data_.mutable_gpu_data();
+		  if (this->output_labels_) {
+			  prefetch_[i].label_.mutable_gpu_data();
+		  }
+	  }
+  }
+#else
   if (Caffe::mode() == Caffe::GPU) {
     for (int i = 0; i < PREFETCH_COUNT; ++i) {
       prefetch_[i].data_.mutable_gpu_data();
       if (this->output_labels_) {
-        prefetch_[i].label_.mutable_gpu_data();
+      	for (int nn = 0; nn < prefetch_[i].labels_.size(); nn++) {
+          prefetch_[i].labels_[nn]->mutable_gpu_data();
+	}
       }
     }
   }
+#endif
 #endif
   DLOG(INFO) << "Initializing prefetch";
   this->data_transformer_->InitRand();
@@ -113,13 +137,26 @@ void BasePrefetchingDataLayer<Dtype>::Forward_cpu(
   caffe_copy(batch->data_.count(), batch->data_.cpu_data(),
              top[0]->mutable_cpu_data());
   DLOG(INFO) << "Prefetch copied";
+#ifndef MSCNN
   if (this->output_labels_) {
     // Reshape to loaded labels.
     top[1]->ReshapeLike(batch->label_);
     // Copy the labels.
     caffe_copy(batch->label_.count(), batch->label_.cpu_data(),
-        top[1]->mutable_cpu_data());
+    top[1]->mutable_cpu_data());
   }
+	      
+#else
+  if (this->output_labels_) {
+    for (int nn = 0; nn < batch->labels_.size(); nn++) {
+    // Reshape to loaded labels.
+    top[nn+1]->ReshapeLike(*batch->labels_[nn]);
+    // Copy the labels.
+    caffe_copy(batch->labels_[nn]->count(), batch->labels_[nn]->cpu_data(),
+        top[nn+1]->mutable_cpu_data());
+    }
+  }
+#endif
 
   prefetch_free_.push(batch);
 }
